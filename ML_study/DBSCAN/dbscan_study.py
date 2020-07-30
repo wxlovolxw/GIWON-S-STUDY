@@ -27,8 +27,6 @@ def plot_DBSCAN(title, X, xlim, ylim):
 
     return y_pred
 
-# plt.figure(figsize=(4,4))
-# y_pred1 = plot_DBSCAN("DBSCAN", X, (-3,3),(-3,3))
-# plt.show()
-
-print(y)
+plt.figure(figsize=(4,4))
+y_pred1 = plot_DBSCAN("DBSCAN", X, (-3,3),(-3,3))
+plt.show()

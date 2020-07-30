@@ -65,7 +65,7 @@ y_pred1 = plot_DBSCAN("Concentric-circles Clustering", X1, 0.1, (-1.2, 1.2), (-1
 plt.subplot(122)
 y_pred2 = plot_DBSCAN("Crecsent Clustering", X2, 0.1, (-1.5, 2.5), (-0.8, 1.2))
 plt.tight_layout()
-#plt.show()
+plt.show()
 
 # 해당 예시에서는 eps는 0.1로 0.1이라는 범위 내에 5개 이상의 데이터가 존재한다면 Core_sample에 저장된다.
 
@@ -76,5 +76,3 @@ plt.tight_layout()
 #   core_sample_indices로 core sample들의 인덱스들이다.
 #   components는 트레이닝에 대한 core sample의 카피이다.
 #   labels_는 데이터셋의 각 지점들에 대한 클러스터의 라벨들이다.
-
-print(y1)
