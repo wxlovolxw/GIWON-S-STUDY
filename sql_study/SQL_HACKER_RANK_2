@@ -116,26 +116,71 @@ Given the CITY and COUNTRY tables, query the names of all the continents
 
 Note: CITY.CountryCode and COUNTRY.Code are matching key columns.
 
+-> ROUND DOWN이므로 내림을 해야한다... 올림은 CEIL(), 내림은 FLOOR(), 반올림은 ROUND()
 
-
-///////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////
+    SELECT COUNTRY.CONTINENT, FLOOR(AVG(CITY.POPULATION))
+    FROM CITY
+    INNER JOIN COUNTRY
+    ON CITY.COUNTRYCODE = COUNTRY.CODE
+    GROUP BY COUNTRY.CONTINENT
 
 ///////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////
+P(R) represents a pattern drawn by Julia in R rows. The following pattern represents P(5):
+
+* * * * *
+* * * *
+* * *
+* *
+*
+Write a query to print the pattern P(20).
+
+    SELECT REPEAT('* ', @N:=@N-1)
+    FROM INFORMATION_SCHEMA.TABLES, (SELECT @N := 21) X
+    LIMIT 20
+
+    -> 사용자 지정변수를 어떻게 쓰는지는 알것 같음
+    -> INFORMATION_SCHEMA.TABLES 는 무엇인지 공부해야 함.
 
 ///////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////
+A median is defined as a number separating the higher half of a data set
+from the lower half. Query the median of the Northern Latitudes (LAT_N) from
+STATION and round your answer to 4 decimal places.
 
-///////////////////////////////////////////////////////////////////////////
+Input Format
 
-///////////////////////////////////////////////////////////////////////////
+The STATION table is described as follows:
 
-///////////////////////////////////////////////////////////////////////////
+    STATION
+    FIELD   TYPE
+    ID      NUMBER
+    CITY    VARCHAR2(21)
+    STATE   VARCHAR2(2)
+    LAT_N   NUMBER
+    LONG_W  NUMBER
+
+where LAT_N is the northern latitude and LONG_W is the western longitude.
+
+-> LAT_N의 중앙값(MEDIAN)을 찾아보자.
+
+-> percent_rank() 의 사용
+percent_rank() over (partition by order by)
+
+    SELECT ROUND(A.LAT_N, 4)
+    FROM (SELECT LAT_N,
+          PERCENT_RANK() OVER (ORDER BY LAT_N) AS PERCENT FROM STATION) A
+    WHERE A.PERCENT = 0.5
+
+    -> 비율 퍼센테이지를 이용해서 구하는 것이므로 50프로일때가 딱 중앙값이다.
+
+-> 사용자 지정 변수의 사용
+
+
+-> 서브 쿼리의 이용
+
+Select round(S.LAT_N,4) mediam
+from station S
+where   (select count(Lat_N) from station where Lat_N < S.LAT_N )
+        = (select count(Lat_N) from station where Lat_N > S.LAT_N)
+
