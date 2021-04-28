@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-avocados_2016 = pd.read_csv('avocados_2016', delimiter = ',')
+avocados_2016 = pd.read_csv('avocados_2016.csv', delimiter =',')
 
 # Import matplotlib.pyplot with alias plt
 import matplotlib.pyplot as plt

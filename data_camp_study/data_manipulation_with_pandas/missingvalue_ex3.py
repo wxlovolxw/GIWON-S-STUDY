@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-avocados_2016 = pd.read_csv('avocados_2016', delimiter = ',')
+avocados_2016 = pd.read_csv('avocados_2016.csv', delimiter =',')
 
 
 # List the columns with missing values

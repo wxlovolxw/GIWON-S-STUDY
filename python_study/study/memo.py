@@ -11,7 +11,7 @@ try :
         f.closd()
 
     elif option == '-v' :
-        f = open("memo.txt",'r')
+        f = open("memo.txt", 'r')
         memo = f.read()
         f.close()
         print(memo)
