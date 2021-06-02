@@ -1,0 +1,114 @@
+Channels를 이용한 실시간 채팅 구현(2)
+
+----------------------------------------------------------------------------------------------------------------------------
+
+1. Room View 추가하기
+
+    - 채팅방 화면인 room.html을 만든다.
+
+<!-- chat/templates/chat/room.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Chat Room</title>
+</head>
+<body>
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br/>
+    <input id="chat-message-input" type="text" size="100"/><br/>
+    <input id="chat-message-submit" type="button" value="Send"/>
+</body>
+<script>
+    var roomName = "";
+
+    var chatSocket = new WebSocket(
+        'ws://' + window.location.host +
+        '/ws/chat/' + roomName + '/');
+
+    chatSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+        var message = data['message'];
+        document.querySelector('#chat-log').value += (message + '\n');
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    document.querySelector('#chat-message-input').focus();
+    document.querySelector('#chat-message-input').onkeyup = function(e) {
+        if (e.keyCode === 13) {  // enter, return
+            document.querySelector('#chat-message-submit').click();
+        }
+    };
+
+    document.querySelector('#chat-message-submit').onclick = function(e) {
+        var messageInputDom = document.querySelector('#chat-message-input');
+        var message = messageInputDom.value;
+        chatSocket.send(JSON.stringify({
+            'message': message
+        }));
+
+        messageInputDom.value = '';
+    };
+</script>
+</html>
+
+    - 채팅방을 만든 후 View에 추가해 준다.
+
+# chat/views.py
+
+from django.shortcuts import render
+
+def index(request):
+    return render(request, 'index.html', {})
+
+def room(request, room_name):
+    return render(request, 'room.html', {
+        'room_name': room_name
+    })
+
+    - URL 매핑을 해준다.
+
+# chat/urls.py
+
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('<str:room_name>/', views.room, name='room'),
+]
+
+----------------------------------------------------------------------------------------------------------------------------
+
+2. 테스트 해보기
+
+$ python manage.py runserver
+
+    - 서버를 실행하고 http://127.0.0.1:8000/chat/ 에 접속
+    - lobby를 입력하고 enter를 치게 되면  아래와 같이 채팅방 화면이 나오게 된다.
+    - 여기서 메시지를 send해보면 동작하지 않는다.
+    -> room view가 웹 소켓 URL인 ws://127.0.0.1:8000/ws/chat/lobby/ 를 open 하려 하는데 아직 웹 소켓 소비자를 만들지 않았기 때문에.
+
+----------------------------------------------------------------------------------------------------------------------------
+
+3. 첫 번째 소비자 작성
+
+    - Django가 HTTP 요청을 받아들이면, URL conf를 찾아서 요청을 처리하기 위한 View를 실행하는 것 처럼,
+    Channels가 WebSocket 연결을 받아들이면, root routing configuration 에서 소비자를 찾은 후, 이벤트를 처리하기 위해
+    함수들을 호출한다.
+
+    - /ws/chat/ROOM_NAME/의 경로로 연결된 WebSocket을 받아들이는 소비자를 작성해본다.
+
+
+
+
+
+
+
+
+
+
+

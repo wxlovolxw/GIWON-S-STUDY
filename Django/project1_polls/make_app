@@ -160,7 +160,63 @@ index 뷰에 정의한 《Hello, world. You’re at the polls index.》 가 보�
         - name : URL에 이름을 지으면, 템플릿을 포함한 django 어디에서나 명확하게 참조할 수 있다.
                 단 하나의 파일만 수정해도 project 내의 모든 URL 패턴을 바꿀 수 있도록 도와준다.
 
+----------------------------------------
 
+    데이터베이스 설치
 
+mysite/settings.py
+
+    -> django 설정을 모듈 변수로 표현한 보통의 python 모듈
+    -> SQLite를 사용한다. 기본적으로 제공된다.
+    -> PostgreSQL과 같은 확장성 있는 데이터베이스를 사용하는 것도 좋다.
+
+    - 다른 데이터베이스를 사용해보고 싶다면, 적절한 데이터베이스 바인딩을 설정하고, 연결과 맞게끔 DATABASE 'default' 항목
+    값을 다음의 키 값으로 바꿔준다.
+
+        ENGINE - 'django.db.backends.sqlite3', 'django.db.backends.postgresql', 'django.db.backends.mysql', 또는 'django.db.backends.oracle' 등
+
+        NAME - SQLite를 사용하는 경우, 데이터베이스는 컴퓨터의 파일이 된다. 이 경우 NAME은 해당 파일의 이름을 포함하여
+        전체 경로로 주어져야 한다. 기본값인 BASE_DIR/'dbsqlite3'은 프로젝트 디렉토리에 파일을 저장합니다.
+
+    -> SQLite를 데이터베이스로 사용하지 않는 경우, USER, PASSWORD, HOST 같은 추가 설정이 반드시 필요하다.
+    SQLite 외의 데이터베이스를 생성할 시에,
+
+        CREATE DATABASE database_name;
+
+    을 통해 생성해주고, 데이터베이스 사용자가 create database 권한이 있는지 확인해 봐야 한다.
+    SQLite를 사용한다면 아무것도 미리 생성할 필요가 없다.
+
+    - TIME_ZONE은 시간대에 맞춰서 사용한다.
+
+        기본설정은 UTC이므로 KST로 변경해서 사용해 준다.
+
+    - INSTALLED_APPS는 Django 인스턴스에서 활성화된 모든 Django 어플리케이션들의 이름이 담겨 있다.
+    앱들은 다수 프로젝트에서 사용될 수 있고, 다른 프로젝트에서 쉽게 사용될 수 있도록 패키징하여 배포할 수 있다.
+
+        django.contrib.admin : 관리용 사이트
+        django.contrib.auth : 인증 시스템
+        django.contrib.contenttype : 컨텐츠 타입을 위한 프레임워크
+        django.contrib.sessions : 세션 프레임워크
+        django.contrib.messages : 메세징 프레임워크
+        django.contrib.staticfiles : 정적 파일을 관리하는 프레임워크
+
+    -> 기본 어플리케이션들 중 몇몇은 최소한 하나 이상의 데이터베이스 테이블을 사용하는데,
+    그러기 위해서 데이터베이스에서 테이블을 미리 만들 필요가 있다.
+
+python manage.py migrate
+
+    -> migrate 명령어는 INSTALLED_APPS의 설정들을 보여주며, mysite/settings.py의 database 설정들을 기반으로 필요한
+    database table들을 생성한다. 또한 앱과 관련된 변경 사항들을 보여준다.
+
+    앱들의 변경사항들에 대한 메시지가 나왔을 때, 생성된 테이블을 보고 싶다면 다음의 명령어를 치면 된다.
+
+     - \dt (PostgreSQL)
+     - SHOW TABLES; (MariaDB, MySQL)
+     - .schema (SQLite)
+     - SELECT TABLE_NAME FROM USER_TABLES; (Oracle)
+
+    -> 기본으로 제공되는 어플리케이션들은 일반적인 상황을 염두하여 생성이 되나, 모두 필요한 것은 아니다.
+    만약 필요없을 시에는 migrate를 실행하기 전에 INSTALLED_APPS에서 제거할 어플리케이션들을 주석처리하거나 삭제한다.
+    miagate 명령은 INSTALLED_APPS에 대해서 실행된다.
 
 

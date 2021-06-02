@@ -1,0 +1,150 @@
+Channels를 이용한 실시간 채팅 구현(1)
+
+    - Channels란?
+
+        웹 소켓, 채팅 프로토콜, IoT 프로토콜 등을 다루는 HTTP 이상의 기능을 갖춘 프로젝트로서 ASGI라고 불리는 파이썬 기반으로 만듬.
+        ASGI는 비동기 요청인 웹 초켓을 처리하는 이벤트로 connect, send, receive, disconnect가 있다.
+
+        Django 자체는 동기시이지만, Channels를 사용하면 연결과 소켓을 비동기 처리한다.
+
+----------------------------------------------------------------------------------------------------------------------------
+
+1. 프로젝트 생성
+
+    - 프로젝트와 앱을 생성
+
+$ django-admin startproject mysite
+$ django-admin startapp chat  # python manage.py startapp chat 으로 해도 된다.
+
+    - chat에서 필요 없는 파일을 지운다.
+
+mysite  - chat      - __init__.py, views.py
+        - mysite    - __init__.py, settings.py, urls.py, wsgi.py
+        - manage.py
+
+    - 생성한 앱을 setting.py에 추가해 준다.
+
+----------------------------------------------------------------------------------------------------------------------------
+
+2. 기본적인 준비
+
+    - 실시간 채팅을 위한 index.html 를 생성한다.
+
+<!-- chat/templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Chat Rooms</title>
+</head>
+<body>
+    What chat room would you like to enter?<br/>
+    <input id="room-name-input" type="text" size="100"/><br/>
+    <input id="room-name-submit" type="button" value="Enter"/>
+
+    <script>
+        document.querySelector('#room-name-input').focus();
+        document.querySelector('#room-name-input').onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+                document.querySelector('#room-name-submit').click();
+            }
+        };
+
+        document.querySelector('#room-name-submit').onclick = function(e) {
+            var roomName = document.querySelector('#room-name-input').value;
+            window.location.pathname = '/chat/' + roomName + '/';
+        };
+    </script>
+</body>
+</html>
+
+
+    - 만들 index 페이지를 위해 View를 설정한다.
+
+# chat/views.py
+
+from django.shortcuts import render
+
+def index(request):
+    return render(request, 'index.html', {})
+
+
+    - URL 매핑을 위해 urls.py를 생성하고 연결시켜준다.
+
+# chat/urls.py
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+]
+
+    - mysite의 urls.py를 수정해 준다.
+
+# mysite/urls.py
+
+from django.conf.urls import include
+from django.urls import path
+from django.contrib import admin
+
+urlpatterns = [
+    path('chat/', include('chat.urls')),
+    path('admin/', admin.site.urls),
+]
+
+----------------------------------------------------------------------------------------------------------------------------
+
+3. 테스트
+
+    - 서버를 돌려서 위의 사항들이 잘 적용 되었는지 확인해 본다.
+
+$ python manage.py runserver
+
+    - 화면에서 채팅방 이름을 입력하고 엔터를 누르게 되면 http://127.0.0.1:8000/chat/lobby/로 이동한다.
+    하지만 이에 대한 View를 작성하기 않았기 때문에 404에러가 나타내게 된다.
+
+----------------------------------------------------------------------------------------------------------------------------
+
+4. Channels 라이브러리 통합
+
+    - channels 패키지 설치
+
+$ pip install -U channels
+
+    - 라우팅 config를 작성한다.
+
+# mysite/routing.py
+
+from channels.routing import ProtocolTypeRouter
+
+application = ProtocolTypeRouter({
+    # (http->django views is added by default)
+})
+
+    - 변경사항을 setting.py를 수정한다.
+    - 이때 chaennels와 chat을 가장 위에 작성하는 이유는 Channel 개발 서버가 다른 서드 파티 앱과 충돌이 발생할 수 있기 때문
+
+# mysite/settings.py
+
+INSTALLED_APPS = [
+    'channels',
+    'chat',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+ASGI_APPLICATION = 'mysite.routing.application'
+
+    - 이때까지의 변경사항을 테스트
+
+$ python manage.py runserver
+
+    - Channels가 chat 앱에 포함되었기 때문에, 이 채널은 runserver 명령을 제어하여 표준 Django 개발 서버를 Channel 개발 서버로
+    대체하게 된다.
+    - 그 결과 Starting ASGI/Channels version 3.0.3 development server at http://127.0.0.1:8000/ 라는 메시지가 출력된다.
+
+----------------------------------------------------------------------------------------------------------------------------
