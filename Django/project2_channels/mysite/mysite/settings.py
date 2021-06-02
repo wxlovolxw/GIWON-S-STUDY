@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
+
+# Channels
 ASGI_APPLICATION = 'mysite.routing.application'
 
 MIDDLEWARE = [

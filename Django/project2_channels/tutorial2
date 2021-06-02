@@ -101,12 +101,60 @@ $ python manage.py runserver
     함수들을 호출한다.
 
     - /ws/chat/ROOM_NAME/의 경로로 연결된 WebSocket을 받아들이는 소비자를 작성해본다.
+    - 경로 URL에 /ws/가 있는데 이는 HTTP 요청과 Websocket을 구분짓기 위한 방법이다.
 
+    - Nginx같은 웹 서버의 배포모드에서 /ws/로 HTTP 요청은 uWSGI로 처리하고,
+    WebSocket 요청은 ASGI로 처리를 한다.
 
+        -> WSGI는 웹 서버와 애플리케이션 간의 통신을 위한 주요 파이썬 표준이지만 동기식 코드만 지원
 
+        -> ASGI는 Django 사이트에서 비동기 Python 기능과 비동기 Django 기능을 개발하면서 사용할 수 있게
+        해주는 새로운 비동기 친화적 표준준
 
+        * 동기(synchronous) : 요청과 결과가 동시에 일어난다. 노드 사이의 작업 처리 단위를 동시에 맞춤
+        * 비동기(Asynchronous) : 요청과 결과가 동시에 일어나지 않음.
 
+    - 소비자 구현을 위해 consumers.py를 만든다.
 
+# chat/consumers.py
+from channels.generic.websocket import WebsocketConsumer
+import json
+
+class ChatConsumer(WebsocketConsumer):
+    def connect(self):
+        self.accept()
+
+    def disconnect(self, close_code):
+        pass
+
+    def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+        message = text_data_json['message']
+
+        self.send(text_data=json.dumps({
+            'message': message
+        }))
+
+    - consumers.py는 모든 요청을 받아들이는 비동기적인 WebSocket 소비자 역할을 하게 된다.
+    메세지를 클라이언트로부터 받아서 그대로 클라이언트에게 전달하는 기능을 하게 된다.
+
+----------------------------------------------------------------------------------------------------------------------------
+
+4. routing 작성
+
+    - routing configuration 파일생성을 위해 routing.py를 작성한다.
+
+# chat/routing.py
+
+from django.urls import re_path
+
+from . import consumers
+
+websocket_urlpatterns = [
+    re_path(r'ws/chat/(?P<room_name>\w+)/$', consumers.ChatConsumer),
+]
+
+    - 위의 routing 파일을 Django가 인식할 수 있도록 mysite의 routing에도 추가해 준다.
 
 
 
