@@ -175,7 +175,7 @@ urlpatterns = [
 ]
 -------------------------------------------
 
-    - 다음으로는 chat.urls 모듈에서 root URLconf를 가르키도록(향하도록) 만들어 줘야 한다.
+    - 다음으로는 root URLconf를 chat.urls로 지정하도록 만들어 줘야 한다.
 
     - mysite/urls.py에 django.conf.urls.include를 임포트 하여 urlpatterns에 include()를 넣어준다.
 
@@ -265,7 +265,7 @@ INSTALLED_APPS = [
 ]
 -----------------------------------
 
-    - 또한 root routing configuration이 Channels를 향하도록 만들어 줘야 한다.
+    - 또한 Channels가 root routing configuration을 향하도록 만들어 주어야 한다.
     mysite/setting.py에 다음을 추가해 준다.
 
 --------------------------------------------
