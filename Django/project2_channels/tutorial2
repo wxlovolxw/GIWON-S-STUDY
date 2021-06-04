@@ -109,7 +109,7 @@ urlpatterns = [
 
     - Channels 개발 서버를 작동해보자.
 
-$ python3 manage.py runserver
+$ python manage.py runserver
 
     - http://127.0.0.1:8000/chat/lobby/ 에서 채팅을 작성해도 아무일도 일어나지 않는다.
 
@@ -283,7 +283,7 @@ Running migrations:
   Applying auth.0012_alter_user_first_name_max_length... OK
   Applying sessions.0001_initial... OK
 
-$ python3 manage.py runserver
+$ python manage.py runserver
 
 ------------------------------------------------------------
 
@@ -298,28 +298,188 @@ $ python3 manage.py runserver
 
 3. Channel layer 가능하게 하기
 
+    - Channel layer는 일종의 의사소통 시스템이다. 이를 통해 여러명의 consumer 인스턴스 들이 서로 대화하고 Django의 다른 부분들과
+    대화하는 것을 가능하게 한다.
+
+    - Channel layer는 다음 사항들을 제공한다.
+
+        - Channel은 메시지들이 보내지는 mailbox와 같다. 각각의 channel은 이름이 있고, 이름이 있는 channel은 메시지를
+        다른 channel로 보낼 수 있다.
+
+        - Group은 서로 관련있는 channel들의 집합이다. 그룹도 이름이 있으며, 이름이 있는 group은 channel을 이름을 통해 추가하거나
+        group내의 모든 channel들에게 메세지를 보내는 것이 가능하게 해준다.
+
+    - 각각의 consumer instance는 자동적으로 고유한 channel 명을 생성하고, 이를 통해 각 channel layer 간의 의사소통이 가능해 진다.
+
+    *** 우리의 목표는 이 chat application을 통해서 같은 채팅방 내에 있는 ChatConsumer의 여러 인스턴스들이 서로 의사소통을 하는 것이다.
+    각각의 ChatConsumer들이 그들의 channel을 room name을 기반으로 한 group명으로 포함을 시키면 된다.
+    그렇다면 ChatConsumer 들이 같은 채팅방에 있는 다른 ChatConsumer들 간의 메시지 전송을 가능하게 해준다.
+
+    - 우리는 Redis를 임시저장 공간으로 사용하는 channel layer를 사용한다.
+
+    - Redis server를 port 6379에서 실행하기 위해 다음과 같은 코드를 실행시킨다.
+
+$ docker run -p 6379:6379 -d redis:5
+
+    - channel들이 redis와 접점을 잡도록(interface) channels_redis를 설치해야 한다.
+
+    ***** docker: Error response from daemon: Ports are not available: listen tcp 0.0.0.0:6349: bind: An attempt was made to access a socket in a way forbidden by its access permissions.
+    라는 오류와 함께 포트에 접속할 수 없었는데,
+
+    -> netcfg -d 명령어를 입력하고 재부팅하니 해결 되었다.
+
+    net stop winnat
+    docker-compose up ...
+    net start winnat
+
+    -> 위의 명령어도 안되면 이를 이용해 보자.
 
 
+$ python -m pip install channels_redis
 
-##############################################################################################
+    - channel layer를 사용하기 전에, 우리는 먼저 설정을 해줘야 한다.
+
+    - mysite/settings.py 파일을 설정하고, CHANNEL_LAYERS를 setting의 가장 아래에 추가한다.
+
+-----------------------------------------------------------------
+# mysite/settings.py
+
+# Channels
+ASGI_APPLICATION = 'mysite.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+-----------------------------------------------------------------
+
+    * 여러개의 channel layer 설정을 하는 것도 가능하지만, 대부분의 프로젝트에서 오직 하나의 'default' channel layer를 사용한다.
+
+    - channel layer가 Redis와 통신할 수 있는지 확인해보자. Django shell을 실행하여 다음의 코드를 작성한다.
+
+----------------------------------------------------------------------
+$ python manage.py shell
+
+>>> import channels.layers
+>>> channel_layer = channels.layers.get_channel_layer()
+>>> from asgiref.sync import async_to_sync
+>>> async_to_sync(channel_layer.send)('test_channel', {'type': 'hello'})
+>>> async_to_sync(channel_layer.receive)('test_channel')
+{'type': 'hello'}
+----------------------------------------------------------------------
+
+    - Control-D를 통해 Django shell을 종료한다.
+
+    - 이제 channel layer는 생성하였고, 이를 ChatConsumer에 사용한다. chat/consumers.py에 다음의 코드를 추가한다.
+
+-----------------------------------------------------------------------------
+# chat/consumers.py
+
+import json
+from asgiref.sync import async_to_sync
+from channels.generic.websocket import WebsocketConsumer
+
+class ChatConsumer(WebsocketConsumer):
+    def connect(self):
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_group_name = 'chat_%s' % self.room_name
+
+        # Join room group
+        async_to_sync(self.channel_layer.group_add)(
+            self.room_group_name,
+            self.channel_name
+        )
+
+        self.accept()
+
+    def disconnect(self, close_code):
+        # Leave room group
+        async_to_sync(self.channel_layer.group_discard)(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    # Receive message from WebSocket
+    def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+        message = text_data_json['message']
+
+        # Send message to room group
+        async_to_sync(self.channel_layer.group_send)(
+            self.room_group_name,
+            {
+                'type': 'chat_message',
+                'message': message
+            }
+        )
+
+    # Receive message from room group
+    def chat_message(self, event):
+        message = event['message']
+
+        # Send message to WebSocket
+        self.send(text_data=json.dumps({
+            'message': message
+        }))
+-----------------------------------------------------------------------------
+
+    - 어떤 유저가 메시지를 게시하게 되면, 자바스크립트 함수가 메시지를 WebSocket의 ChatConsumer에게 전달한다.
+    ChatConsumer는 메시를 받아서 room name을 기반으로 한 group에게 전달하고, 같은 그룹 내의 모든 ChatConsumer가
+    group으로부터 메시지를 전달받게 되면서, 이를 WebSocket을 통해 자바스크립로 전달하면서 chat log에 메시지가 추가된다.
+
+    - ChatConsumer에 추가되는 코드는 다음과 같다.
+
+-----------------------------------------------------------------------------------------------------------------------
+
+self.scope['url_route']['kwargs']['room_name']
+
+    - chat/routing.py에 있는 URL 경로를 통해 'room_name'을 얻는다. 이 URL은 WebSocket 연결을 consumer에게 열어준 경로이다.
+
+    - 모든 consumer는 연결에 대한 정보를 포함한 scope를 가지고 있다. 이 정보는 특히 URL 경로의 위치 또는 키워드 인수와,
+    현재 인등된 사용자(있는경우)를 포함한다.
+
+self.room_group_name = 'chat_%s' % self.room_name
+
+    - 전달이나 벗어남 없이 유저가 특정한 room name을 정확하게 받아 channels group name을 구성한다.
+
+    - 그룹명에는 letters, digits, hyphens, 그리고 periods만 포함해야 한다.
+
+async_to_sync(self.channel_layer.group_add)(...)
+
+    - 그룹에 참가한다.
+
+    - async_to_sync(…)는 ChatConsumer가 동기적 WebsocketConsumer이지만 비동기적 channel layer 방법을 통해 호출되기 때문에 필요하다.
+
+self.accept()
+
+    - WebSocket 연결을 허락한다.
+
+    - connect() 매서드 내에서 accept()를 불러주지 않는다면 연결이 거절되며 종료된다. 요청된 작업에 대해서 권한이 없는 사용자의
+    연결을 끊을 수 있다.
+
+    - connect()의 가장 마지막에서 accept()를 불러주는 것이 가장 좋다.
+
+async_to_sync(self.channel_layer.group_discard)(...)
 
 
+    - 그룹을 나간다.
 
+async_to_sync(self.channel_layer.group_send)
 
+    - group에 이벤트를 보낸다.
 
-##############################################################################################
+    - 각 이벤트는 이벤트를 수신하는 소비자에게 호출해야하는 방법에 대한 이름에 대한 특별한 'type' 키가 존재한다.
 
+-----------------------------------------------------------------------------------------------------------------------
 
+    - 이제 /ws/chat/ROOM_NAME/ 경로 작업에 대해서 새로운 consumer들을 확인해보자.
 
+$ python manage.py runserver
 
+    - http://127.0.0.1:8000/chat/lobby/ 를 두개 열어 메시지를 보내본다.
 
-
-
-
-
-
-
-
-
-
+    - 이데 첫 브라우저에서 보낸 메시지가 두 번째 브라우저에서도 확인된다.
 

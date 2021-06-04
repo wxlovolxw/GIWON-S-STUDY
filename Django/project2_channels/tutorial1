@@ -41,7 +41,7 @@ mysite/
 
     - manage.py가 있는 동일 디렉토리에서 chat app을 생성한다.
 
-$ python3 manage.py startapp chat
+$ python manage.py startapp chat
 
     - mysite 디렉토리 아래에 chat 디렉토리가 생성되며, 구성은 다음과 같다.
 
@@ -195,7 +195,7 @@ urlpatterns = [
     - 이제 코드가 잘 실행되는지 확인해 보면,
 
 ----------------------------------------------------------------------
-$ python3 manage.py runserver
+$ python manage.py runserver
 
 Watching for file changes with StatReloader
 Performing system checks...
@@ -286,7 +286,7 @@ ASGI_APPLICATION = 'mysite.asgi.application'
     - Channels 개발 서버가 제대로 작동하는지 확인해 보자.
 
 ----------------------------------------------------------------------------------------
-$ python3 manage.py runserver
+$ python manage.py runserver
 
 Watching for file changes with StatReloader
 Performing system checks...
