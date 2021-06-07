@@ -1,0 +1,214 @@
+장고 앱 작성하기(2)
+
+##################################################################################
+
+1. 데이터베이스 설치
+
+mysite/settings.py
+
+    - django 설정을 모듈 변수로 표현한 보통의 python 모듈
+    - SQLite를 사용한다. 기본적으로 제공된다.
+    - PostgreSQL과 같은 확장성 있는 데이터베이스를 사용하는 것도 좋다.
+
+    - 다른 데이터베이스를 사용해보고 싶다면, 적절한 데이터베이스 바인딩을 설정하고, 연결과 맞게끔 DATABASE 'default' 항목
+    값을 다음의 키 값으로 바꿔준다.
+
+        ENGINE - 'django.db.backends.sqlite3', 'django.db.backends.postgresql', 'django.db.backends.mysql', 또는 'django.db.backends.oracle' 등
+
+        NAME - SQLite를 사용하는 경우, 데이터베이스는 컴퓨터의 파일이 된다. 이 경우 NAME은 해당 파일의 이름을 포함하여
+        전체 경로로 주어져야 한다. 기본값인 BASE_DIR/'dbsqlite3'은 프로젝트 디렉토리에 파일을 저장합니다.
+
+    - SQLite를 데이터베이스로 사용하지 않는 경우, USER, PASSWORD, HOST 같은 추가 설정이 반드시 필요하다.
+    SQLite 외의 데이터베이스를 생성할 시에,
+
+CREATE DATABASE database_name;
+
+    을 통해 생성해주고, 데이터베이스 사용자가 create database 권한이 있는지 확인해 봐야 한다.
+    SQLite를 사용한다면 아무것도 미리 생성할 필요가 없다.
+
+    - TIME_ZONE은 시간대에 맞춰서 사용한다.
+
+        기본설정은 UTC이므로 KST로 변경해서 사용해 준다.
+
+    - INSTALLED_APPS는 Django 인스턴스에서 활성화된 모든 Django 어플리케이션들의 이름이 담겨 있다.
+    앱들은 다수 프로젝트에서 사용될 수 있고, 다른 프로젝트에서 쉽게 사용될 수 있도록 패키징하여 배포할 수 있다.
+
+        django.contrib.admin : 관리용 사이트
+        django.contrib.auth : 인증 시스템
+        django.contrib.contenttype : 컨텐츠 타입을 위한 프레임워크
+        django.contrib.sessions : 세션 프레임워크
+        django.contrib.messages : 메세징 프레임워크
+        django.contrib.staticfiles : 정적 파일을 관리하는 프레임워크
+
+    - 기본 어플리케이션들 중 몇몇은 최소한 하나 이상의 데이터베이스 테이블을 사용하는데,
+    그러기 위해서 데이터베이스에서 테이블을 미리 만들 필요가 있다.
+
+$ python manage.py migrate
+
+    - migrate 명령어는 INSTALLED_APPS의 설정들을 보여주며, mysite/settings.py의 database 설정들을 기반으로 필요한
+    database table들을 생성한다. 또한 앱과 관련된 변경 사항들을 보여준다.
+
+    앱들의 변경사항들에 대한 메시지가 나왔을 때, 생성된 테이블을 보고 싶다면 다음의 명령어를 치면 된다.
+
+     - \dt (PostgreSQL)
+     - SHOW TABLES; (MariaDB, MySQL)
+     - .schema (SQLite)
+     - SELECT TABLE_NAME FROM USER_TABLES; (Oracle)
+
+    -> 기본으로 제공되는 어플리케이션들은 일반적인 상황을 염두하여 생성이 되나, 모두 필요한 것은 아니다.
+    만약 필요없을 시에는 migrate를 실행하기 전에 INSTALLED_APPS에서 제거할 어플리케이션들을 주석처리하거나 삭제한다.
+    miagate 명령은 INSTALLED_APPS에 대해서 실행된다.
+
+##################################################################################
+
+2. 모델 만들기
+
+    모델이란 부가적인 메타데이터를 가진 데이터베이스의 구조(layout)을 말한다.
+
+    *** 모델은 데이터에 관한 단 하나의, 가장 확실한 진리의 원천. 저장하는 모든 데이터의 필수적인
+    필드들과, 동작들을 포함하고 있다. 기본적으로 DRY 원칙을 따르는데, 이 원칙에 따라 데이터 모델을
+    한곳에서 정의하고, 이것으로 부터 자동으로 무언가를 유도하는 것이 목표이다.
+
+    - poll app에서는 '질문과 선택'의 두가지 모델을 만들 수 있다.
+    질문은 질문과 발행일을 가지고 있으며, 선택은 선택과 집표 두가지 필드를 가지고 있다.
+    각 선택들은 질문에 연관되어 있다.
+
+    - polls/model.py 파일을 다음과 같이 수정하자.
+
+-------------------------------------------------------
+# polls/model.py
+
+from django.db import models
+
+class Question(models.Model):
+    question_text = models.CharField(max_length=200)
+    pub_date = models.DateTimeField('date published')
+
+class Choice(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    choice_text = models.CharField(max_length=200)
+    votes = models.IntegerField(default=0)
+-------------------------------------------------------
+
+    - 각각의 모델들은 django.cd.models.Model의 서브클래스들로 class로 표현된다.
+    각 모델들은 많은 클래스 변수들을 가지고 있으며, 모델의 데이터베이스 필드를 표현한다.
+
+    - 데이터 베이스의 각 필드는 Field 클래스의 인스턴스로 표현된다.
+
+        CharField는 문자 필드를 표현하고, DateTimeField는 날짜와 시간 필드를 표현한다.
+        이것들은 각 필드가 어떤 자료형을 가질 수 있는지 Django에게 말헤준다.
+
+    - 각각의 Field 인스턴스의 이름(question_text, pub_data)은 기계가 읽기 좋은 형식의
+    데이터베이스 필드 이름이다. 이 필드명을 Python 코드에서 사용할 수 있고, 데이터베이스에서는
+    컬럼명으로 사용할 것이다.
+
+     - Field 클래스의 상성자에 선택적인 첫번째 위치 인수를 전달하여 human-readable 이름을
+     지정할 수도 있다. 이 방법은 Django의 내부를 설명하는 용도로도 종종 사용되는데, 문서가 늘어
+     나는 것과 같은 효과를 가진다. 만약 이를 설정하지 않으면 기계가 읽기 좋은 형식의 이름을 사용한다.
+
+        이번 예제에서는 Question.pub_date에 한해서만 human-readable의 이름을 사용한다.
+
+        그 외의 필드들은 machine-friendly한 형태라고 human-readable하다.
+
+     - 몇몇 Field 클래스들은 필수 인수가 필요하다. 예를 들어, CharField의 경우 max_length를
+     입력해주어야 한다. 이것은 데이터베이스 스키마에서만 필요한 것이 아닌 값을 검증할 때 사용된다.
+
+     - 또한 몇몇 Field는 다양한 선택적 인수들을 가질 수 있다.
+
+        이번 예제에서는 default를 통해 votes의 기본값을 0으로 설정하였다.
+
+     - ForeignKey를 사용한 관계설정을 통해 각각의 Choice가 Question에 관계된다는 것을 Django에 전달한다.
+     Django는 다대일(many-to-one), 일대일(one-to-one)과 같은 모든 일반 데이터베이스 관계를 지원한다.
+
+##################################################################################
+
+3. 모델의 활성화
+
+    모델에 대한 이 작은 코드가 Django에는 상당한 양의 정보를 전달한다.
+    Django는 이 정보를 통해 다음의 일을 수행한다.
+
+        - 이 앱을 위한 데이터베이스 스키마 생성(CREATE TABLE)
+
+        - Question과 Choice 객체에 접근하기 위한 Python 데이터베이스 접근 API를 생성
+
+    - 그 이전에 현재 프로젝트에 polls 앱이 설치 되었다는 것을 알려야 한다.
+
+    - mysite/settings.py에 INSTALLED_APPS에 이 PollsConfig 클래스를 추가해줘야 한다.
+    이 클래스의 경로는 polls.apps.PollsConfig와 같으므로 이 경로로 추가해 준다.
+
+-------------------------------------
+# mysite/settings.py
+
+INSTALLED_APPS = [
+    'polls.apps.PollsConfig',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+-------------------------------------
+
+    - 이제 Django가 pools앱이 포함된 것을 알게 되었으니 다음 명령을 내려본다.
+
+-----------------------------------------
+$ python manage.py makemigrations polls
+
+Migrations for 'polls':
+  polls/migrations/0001_initial.py
+    - Create model Question
+    - Create model Choice
+-----------------------------------------
+
+    - migrations를 실행 시킴으로서, 모델을 변경(혹은 새로운 모델 생성)시킨 사실과,
+    이에 대한 변경 사항들을 migration으로 저장시키고 싶다는 것을 Django에 알려준다.
+
+    *** migration은 Django가 사용자의 모델(데이터베이스 스키마)에 대한 변경을 저장하는 방식.
+    즉, 디스크 내의 파일이다. 원한다면 새로운 모델에 대한 migration을 읽을 수 있다.
+
+        polls/migrations/0001_initial.py
+
+    Django가 새로운 것을 만들 때마다 읽을 필요는 없지만, Django가 어떻게 변경시키는지에 대해
+    수작업으로 수정하고 싶을 경우를 대비하여 사람이 편집(human_editable)할 수 있도록 고안되었다.
+
+    - migration들을 실행해주고, 자동으로 데이터베이스 스키마를 관리해주는 migration 명령어가 있다.
+
+    - sqlmigration 명령은 migration 이름을 인수로 받아, 실행하는 SQL 문장을 보여준다.
+
+--------------------------------------------------
+$ python manage.py sqlmigrate polls 0001
+
+BEGIN;
+--
+-- Create model Question
+--
+CREATE TABLE "polls_question" (
+    "id" serial NOT NULL PRIMARY KEY,
+    "question_text" varchar(200) NOT NULL,
+    "pub_date" timestamp with time zone NOT NULL
+);
+--
+-- Create model Choice
+--
+CREATE TABLE "polls_choice" (
+    "id" serial NOT NULL PRIMARY KEY,
+    "choice_text" varchar(200) NOT NULL,
+    "votes" integer NOT NULL,
+    "question_id" integer NOT NULL
+);
+ALTER TABLE "polls_choice"
+  ADD CONSTRAINT "polls_choice_question_id_c5b4b260_fk_polls_question_id"
+    FOREIGN KEY ("question_id")
+    REFERENCES "polls_question" ("id")
+    DEFERRABLE INITIALLY DEFERRED;
+CREATE INDEX "polls_choice_question_id_c5b4b260" ON "polls_choice" ("question_id");
+
+COMMIT;
+--------------------------------------------------
+
+
+
+
+
+
